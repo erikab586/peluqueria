@@ -1,0 +1,24 @@
+:root {
+  --color-bg: #0b0b0b;
+  --color-bg-secondary: #141414;
+  --color-text: #f6f1ea;
+  --color-text-secondary: #cbbfb0;
+  --color-accent: #d4af6a;
+  --color-accent-dark: #e6c57f;
+  --color-white: #ffffff;
+  --color-card: #fffdf9;
+  --color-ink: #161513;
+  --color-ink-muted: #5f5850;
+  --color-line: rgba(255, 255, 255, 0.12);
+  --color-whatsapp: #25d366;
+
+  --font-serif: 'Poppins', 'Segoe UI', sans-serif;
+  --font-sans: 'Poppins', 'Segoe UI', sans-serif;
+
+  --nav-height: 76px;
+  --container: 1180px;
+  --radius: 8px;
+  --shadow-soft: 0 12px 36px rgba(0, 0, 0, 0.28);
+  --shadow-lift: 0 18px 44px rgba(212, 175, 106, 0.16);
+  --transition: 0.35s ease;
+}
