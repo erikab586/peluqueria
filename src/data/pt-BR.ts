@@ -1,4 +1,5 @@
 import type { Translations } from '@/types'
+import { SERVICE_TRANSLATIONS } from './services'
 
 export const ptBR: Translations = {
   seo: {
@@ -44,38 +45,14 @@ export const ptBR: Translations = {
       treatments: 'Tratamentos',
     },
     items: {
-      cut: {
-        name: 'Corte feminino',
-        description: 'Corte sob medida para valorizar o movimento e o formato do seu rosto.',
-      },
-      blowout: {
-        name: 'Escova',
-        description: 'Finalização elegante, com brilho e caimento natural.',
-      },
-      hydration: {
-        name: 'Hidratação',
-        description: 'Tratamento profundo para devolver maciez, saúde e luminosidade.',
-      },
-      color: {
-        name: 'Coloração',
-        description: 'Cor precisa e sofisticada, pensada para a saúde dos fios.',
-      },
-      highlights: {
-        name: 'Mechas',
-        description: 'Iluminação sutil ou marcada, com um resultado de salão editorial.',
-      },
-      straightening: {
-        name: 'Progressiva',
-        description: 'Alisamento controlado para um visual alinhado e duradouro.',
-      },
-      manicure: {
-        name: 'Manicure',
-        description: 'Cuidado das unhas com acabamento limpo e elegante.',
-      },
-      pedicure: {
-        name: 'Pedicure',
-        description: 'Bem-estar e acabamento refinado para os pés.',
-      },
+      cut: SERVICE_TRANSLATIONS.cut['pt-BR'],
+      blowout: SERVICE_TRANSLATIONS.blowout['pt-BR'],
+      hydration: SERVICE_TRANSLATIONS.hydration['pt-BR'],
+      color: SERVICE_TRANSLATIONS.color['pt-BR'],
+      highlights: SERVICE_TRANSLATIONS.highlights['pt-BR'],
+      straightening: SERVICE_TRANSLATIONS.straightening['pt-BR'],
+      manicure: SERVICE_TRANSLATIONS.manicure['pt-BR'],
+      pedicure: SERVICE_TRANSLATIONS.pedicure['pt-BR'],
     },
   },
   about: {
@@ -210,5 +187,23 @@ export const ptBR: Translations = {
     defaultMessage: 'Olá! Gostaria de agendar um horário na Lumière Beauty Studio.',
     bookingMessage:
       'Olá! Gostaria de agendar um horário na Lumière Beauty Studio.\nServiço: {service}\nData: {date}\nHorário: {time}\nNome: {name}',
+  },
+  chat: {
+    open: 'Abrir assistente virtual',
+    close: 'Fechar assistente virtual',
+    title: 'Assistente Lumière',
+    subtitle: 'Tire suas dúvidas sobre nossos serviços',
+    welcome:
+      'Olá! Posso ajudar com informações sobre serviços, valores e horários. Selecione um ou mais serviços ou me faça uma pergunta.',
+    selectServices: 'Selecione os serviços',
+    selectionHelp: 'Selecione um ou vários serviços.',
+    selectedCount: 'selecionados',
+    priceFrom: 'A partir de',
+    inputLabel: 'Sua pergunta',
+    placeholder: 'Escreva sua pergunta...',
+    send: 'Enviar',
+    sending: 'Respondendo...',
+    error: 'Não foi possível obter uma resposta agora. Tente novamente ou fale conosco pelo WhatsApp.',
+    whatsapp: 'Falar pelo WhatsApp',
   },
 }

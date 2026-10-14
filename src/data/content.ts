@@ -1,17 +1,8 @@
-import type { GalleryMeta, ServiceMeta } from '@/types'
+import type { GalleryMeta } from '@/types'
+
+export { SERVICES } from './services'
 
 const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`
-
-export const SERVICES: ServiceMeta[] = [
-  { id: 'cut', price: 60, duration: '45 min', icon: 'scissors', category: 'hair' },
-  { id: 'blowout', price: 45, duration: '40 min', icon: 'wind', category: 'hair' },
-  { id: 'hydration', price: 70, duration: '50 min', icon: 'droplets', category: 'treatments' },
-  { id: 'color', price: 150, duration: '2h', icon: 'palette', category: 'hair' },
-  { id: 'highlights', price: 250, duration: '2h 30', icon: 'sparkles', category: 'hair' },
-  { id: 'straightening', price: 180, duration: '2h', icon: 'blend', category: 'treatments' },
-  { id: 'manicure', price: 35, duration: '40 min', icon: 'hand', category: 'nails' },
-  { id: 'pedicure', price: 40, duration: '45 min', icon: 'gem', category: 'nails' },
-]
 
 export const GALLERY: GalleryMeta[] = [
   { id: 'g1', src: asset('images/gallery-01.jpg'), category: 'hair' },

@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import About from '@/components/About.vue'
 import Benefits from '@/components/Benefits.vue'
 import Booking from '@/components/Booking.vue'
+import ChatWidget from '@/components/ChatWidget.vue'
 import CTA from '@/components/CTA.vue'
 import Footer from '@/components/Footer.vue'
 import Gallery from '@/components/Gallery.vue'
@@ -10,7 +11,6 @@ import Hero from '@/components/Hero.vue'
 import Navbar from '@/components/Navbar.vue'
 import Services from '@/components/Services.vue'
 import Testimonials from '@/components/Testimonials.vue'
-import WhatsAppButton from '@/components/WhatsAppButton.vue'
 import { useI18n } from '@/composables/useI18n'
 import { initReveals } from '@/composables/useReveal'
 
@@ -35,5 +35,5 @@ onMounted(() => {
     <CTA />
   </main>
   <Footer />
-  <WhatsAppButton />
+  <ChatWidget />
 </template>

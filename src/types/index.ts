@@ -169,4 +169,21 @@ export interface Translations {
     defaultMessage: string
     bookingMessage: string
   }
+  chat: {
+    open: string
+    close: string
+    title: string
+    subtitle: string
+    welcome: string
+    selectServices: string
+    selectionHelp: string
+    selectedCount: string
+    priceFrom: string
+    inputLabel: string
+    placeholder: string
+    send: string
+    sending: string
+    error: string
+    whatsapp: string
+  }
 }
