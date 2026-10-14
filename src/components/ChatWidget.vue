@@ -109,13 +109,7 @@ async function sendMessage() {
     messages.value.push({ role: 'assistant', content: result.reply })
   } catch (error) {
     console.error('Failed to send chat message:', error)
-    const message = error instanceof Error ? error.message : ''
-    errorCode.value =
-      message.includes('GEMINI_API_KEY_MISSING') || message.includes('GEMINI_API_KEY_REJECTED')
-        ? 'configuration'
-        : message.includes('GEMINI_RATE_LIMITED')
-          ? 'rateLimit'
-          : 'generic'
+    errorCode.value = 'generic'
   } finally {
     isSending.value = false
   }
@@ -189,13 +183,7 @@ async function sendMessage() {
       </div>
 
       <p v-if="errorCode" class="error-message" role="alert">
-        {{
-          errorCode === 'configuration'
-            ? t.chat.configurationError
-            : errorCode === 'rateLimit'
-              ? t.chat.rateLimitError
-              : t.chat.error
-        }}
+        {{ t.chat.error }}
       </p>
 
       <form class="composer" @submit.prevent="sendMessage">
