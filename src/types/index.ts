@@ -184,6 +184,8 @@ export interface Translations {
     send: string
     sending: string
     error: string
+    configurationError: string
+    rateLimitError: string
     whatsapp: string
   }
 }

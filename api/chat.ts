@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai'
+import { ApiError, GoogleGenAI } from '@google/genai'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { SERVICE_CATALOG, SERVICE_TRANSLATIONS } from '../src/data/services.js'
 import type { Locale, ServiceId } from '../src/types/index.js'
@@ -9,7 +9,7 @@ interface ApiRequest extends IncomingMessage {
 
 interface ApiResponse extends ServerResponse {
   status(statusCode: number): ApiResponse
-  json(body: Record<string, string>): ApiResponse
+  json(body: { error?: string; code?: string; reply?: string }): ApiResponse
 }
 
 interface ChatMessage {
@@ -119,7 +119,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
     console.error('GEMINI_API_KEY is not configured')
-    response.status(503).json({ error: 'Chat service is not configured' })
+    response.status(503).json({
+      error: 'Chat service is not configured',
+      code: 'GEMINI_API_KEY_MISSING',
+    })
     return
   }
 
@@ -145,7 +148,34 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
     response.status(200).json({ reply })
   } catch (error) {
-    console.error('Gemini chat request failed:', error)
-    response.status(502).json({ error: 'Unable to generate a chat response' })
+    if (error instanceof ApiError) {
+      const providerMessage = error.message.replaceAll(apiKey, '[REDACTED]').slice(0, 500)
+      console.error(`Gemini API returned ${error.status}: ${providerMessage}`)
+
+      if (error.status === 401 || error.status === 403) {
+        response.status(503).json({
+          error: 'Gemini API credentials are invalid or not authorized',
+          code: 'GEMINI_API_KEY_REJECTED',
+        })
+        return
+      }
+
+      if (error.status === 429) {
+        response.status(503).json({
+          error: 'Gemini API quota or rate limit exceeded',
+          code: 'GEMINI_RATE_LIMITED',
+        })
+        return
+      }
+    } else if (error instanceof Error) {
+      console.error('Gemini chat request failed:', error.message)
+    } else {
+      console.error('Gemini chat request failed with a non-error value')
+    }
+
+    response.status(502).json({
+      error: 'Unable to generate a chat response',
+      code: 'GEMINI_REQUEST_FAILED',
+    })
   }
 }

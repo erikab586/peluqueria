@@ -204,6 +204,10 @@ export const ptBR: Translations = {
     send: 'Enviar',
     sending: 'Respondendo...',
     error: 'Não foi possível obter uma resposta agora. Tente novamente ou fale conosco pelo WhatsApp.',
+    configurationError:
+      'O assistente não está configurado no momento. Fale conosco pelo WhatsApp para receber ajuda.',
+    rateLimitError:
+      'O assistente está ocupado agora. Tente novamente mais tarde ou fale conosco pelo WhatsApp.',
     whatsapp: 'Falar pelo WhatsApp',
   },
 }

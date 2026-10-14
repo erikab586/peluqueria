@@ -13,7 +13,7 @@ interface ChatMessage {
 const { locale, t } = useI18n()
 const isOpen = ref(false)
 const isSending = ref(false)
-const hasError = ref(false)
+const errorCode = ref('')
 const question = ref('')
 const selectedServiceIds = ref<ServiceId[]>([])
 const messages = ref<ChatMessage[]>([
@@ -69,7 +69,7 @@ async function sendMessage() {
 
   messages.value.push({ role: 'user', content })
   question.value = ''
-  hasError.value = false
+  errorCode.value = ''
   isSending.value = true
 
   try {
@@ -84,7 +84,15 @@ async function sendMessage() {
     })
 
     if (!response.ok) {
-      throw new Error(`Chat API returned ${response.status}`)
+      const errorBody: unknown = await response.json().catch(() => null)
+      const code =
+        typeof errorBody === 'object' &&
+        errorBody !== null &&
+        'code' in errorBody &&
+        typeof errorBody.code === 'string'
+          ? errorBody.code
+          : ''
+      throw new Error(`Chat API returned ${response.status}${code ? ` (${code})` : ''}`)
     }
 
     const result: unknown = await response.json()
@@ -101,7 +109,13 @@ async function sendMessage() {
     messages.value.push({ role: 'assistant', content: result.reply })
   } catch (error) {
     console.error('Failed to send chat message:', error)
-    hasError.value = true
+    const message = error instanceof Error ? error.message : ''
+    errorCode.value =
+      message.includes('GEMINI_API_KEY_MISSING') || message.includes('GEMINI_API_KEY_REJECTED')
+        ? 'configuration'
+        : message.includes('GEMINI_RATE_LIMITED')
+          ? 'rateLimit'
+          : 'generic'
   } finally {
     isSending.value = false
   }
@@ -174,7 +188,15 @@ async function sendMessage() {
         </div>
       </div>
 
-      <p v-if="hasError" class="error-message" role="alert">{{ t.chat.error }}</p>
+      <p v-if="errorCode" class="error-message" role="alert">
+        {{
+          errorCode === 'configuration'
+            ? t.chat.configurationError
+            : errorCode === 'rateLimit'
+              ? t.chat.rateLimitError
+              : t.chat.error
+        }}
+      </p>
 
       <form class="composer" @submit.prevent="sendMessage">
         <label class="visually-hidden" for="chat-question">{{ t.chat.inputLabel }}</label>

@@ -204,6 +204,10 @@ export const es: Translations = {
     send: 'Enviar',
     sending: 'Respondiendo...',
     error: 'No se pudo obtener una respuesta en este momento. Inténtalo de nuevo o escríbenos por WhatsApp.',
+    configurationError:
+      'El asistente no está configurado por el momento. Escríbenos por WhatsApp para ayudarte.',
+    rateLimitError:
+      'El asistente está ocupado en este momento. Inténtalo de nuevo más tarde o escríbenos por WhatsApp.',
     whatsapp: 'Hablar por WhatsApp',
   },
 }
