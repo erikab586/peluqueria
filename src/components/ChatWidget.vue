@@ -2,38 +2,210 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { buildWhatsAppUrl } from '@/composables/useWhatsApp'
 import { useI18n } from '@/composables/useI18n'
-import { SERVICE_CATALOG, SERVICE_TRANSLATIONS } from '@/data/services'
+import { SERVICE_CATALOG } from '@/data/services'
 import type { ServiceId } from '@/types'
+
+type ChatStage =
+  | 'menu'
+  | 'booking-service'
+  | 'booking-date'
+  | 'booking-exact-date'
+  | 'booking-name'
+  | 'booking-whatsapp'
+  | 'booking-done'
+  | 'services'
+  | 'location'
+  | 'quote-notes'
+  | 'quote-name'
+  | 'quote-whatsapp'
+  | 'quote-done'
+  | 'lead-error'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
 }
 
-const { locale, t } = useI18n()
+interface LeadPayload {
+  nombre: string
+  whatsapp: string
+  intencion: 'agendar' | 'cotizar'
+  servicio_o_paquete: string
+  fecha_preferida: string
+  notas: string
+  origen_url: string
+}
+
+interface ChatAction {
+  label: string
+  value: string
+}
+
+const { t } = useI18n()
 const isOpen = ref(false)
 const isSending = ref(false)
-const errorCode = ref('')
-const question = ref('')
-const selectedServiceIds = ref<ServiceId[]>([])
+const stage = ref<ChatStage>('menu')
+const answer = ref('')
+const selectedServiceId = ref<ServiceId | null>(null)
+const preferredDate = ref('')
+const name = ref('')
+const whatsapp = ref('')
+const notes = ref('')
+const pendingLead = ref<LeadPayload | null>(null)
+const showServiceDetails = ref(false)
 const messages = ref<ChatMessage[]>([
   { role: 'assistant', content: t.value.chat.welcome },
 ])
 const messageList = ref<HTMLElement | null>(null)
 
-const whatsappUrl = computed(() => {
-  const selected = SERVICE_CATALOG.filter((service) =>
-    selectedServiceIds.value.includes(service.id),
-  )
-    .map((service) => SERVICE_TRANSLATIONS[service.id][locale.value].name)
-    .join(', ')
-
-  const message = selected
-    ? `${t.value.whatsapp.defaultMessage}\n${t.value.chat.selectServices}: ${selected}`
-    : t.value.whatsapp.defaultMessage
-
-  return buildWhatsAppUrl(message)
+const serviceName = computed(() => {
+  if (!selectedServiceId.value) return ''
+  return t.value.services.items[selectedServiceId.value].name
 })
+
+const isTextStep = computed(() =>
+  [
+    'booking-exact-date',
+    'booking-name',
+    'booking-whatsapp',
+    'quote-notes',
+    'quote-name',
+    'quote-whatsapp',
+  ].includes(stage.value),
+)
+
+const inputPlaceholder = computed(() => {
+  if (stage.value === 'booking-name' || stage.value === 'quote-name') return t.value.chat.inputName
+  if (stage.value === 'booking-whatsapp' || stage.value === 'quote-whatsapp') {
+    return t.value.chat.inputWhatsapp
+  }
+  if (stage.value === 'booking-exact-date') return t.value.chat.inputDate
+  return t.value.chat.inputProject
+})
+
+const inputMaxLength = computed(() => {
+  if (stage.value === 'booking-name' || stage.value === 'quote-name') return 120
+  if (stage.value === 'booking-whatsapp' || stage.value === 'quote-whatsapp') return 40
+  if (stage.value === 'booking-exact-date') return 160
+  return 1000
+})
+
+const actions = computed<ChatAction[]>(() => {
+  if (stage.value === 'menu') {
+    return [
+      { label: t.value.chat.menuBooking, value: 'booking' },
+      { label: t.value.chat.menuServices, value: 'services' },
+      { label: t.value.chat.menuLocation, value: 'location' },
+      { label: t.value.chat.menuQuote, value: 'quote' },
+    ]
+  }
+
+  if (stage.value === 'booking-service' || stage.value === 'services') {
+    return [
+      ...SERVICE_CATALOG.map((service) => ({
+        label: `${t.value.services.items[service.id].name} · R$ ${service.price} · ${service.duration}`,
+        value: `service:${service.id}`,
+      })),
+      { label: t.value.chat.serviceDifferent, value: 'quote' },
+      ...(stage.value === 'services'
+        ? [{ label: t.value.chat.serviceDetailsAction, value: 'details' }]
+        : []),
+    ]
+  }
+
+  if (stage.value === 'booking-date') {
+    return [
+      { label: t.value.chat.dateThisWeek, value: 'date:this-week' },
+      { label: t.value.chat.dateNextWeek, value: 'date:next-week' },
+      { label: t.value.chat.dateExact, value: 'date:exact' },
+    ]
+  }
+
+  if (stage.value === 'location') {
+    return [
+      { label: t.value.chat.maps, value: 'maps' },
+      { label: t.value.chat.bookVisit, value: 'booking' },
+      { label: t.value.chat.backToMenu, value: 'menu' },
+    ]
+  }
+
+  if (stage.value === 'booking-done' || stage.value === 'quote-done') {
+    return [
+      { label: t.value.chat.whatsappNow, value: 'whatsapp' },
+      { label: t.value.chat.backToMenu, value: 'menu' },
+    ]
+  }
+
+  if (stage.value === 'lead-error') {
+    return [
+      { label: t.value.chat.send, value: 'retry' },
+      { label: t.value.chat.whatsappNow, value: 'whatsapp' },
+      { label: t.value.chat.backToMenu, value: 'menu' },
+    ]
+  }
+
+  return []
+})
+
+const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=Florian%C3%B3polis%2C%20SC'
+
+function addMessage(role: ChatMessage['role'], content: string) {
+  messages.value.push({ role, content })
+}
+
+function resetLead() {
+  selectedServiceId.value = null
+  preferredDate.value = ''
+  name.value = ''
+  whatsapp.value = ''
+  notes.value = ''
+  pendingLead.value = null
+  showServiceDetails.value = false
+}
+
+function setStage(nextStage: ChatStage, prompt: string) {
+  stage.value = nextStage
+  addMessage('assistant', prompt)
+}
+
+function goToMenu() {
+  resetLead()
+  stage.value = 'menu'
+  addMessage('assistant', t.value.chat.welcome)
+}
+
+function currentLead(): LeadPayload {
+  return {
+    nombre: name.value,
+    whatsapp: whatsapp.value,
+    intencion: stage.value.startsWith('quote') ? 'cotizar' : 'agendar',
+    servicio_o_paquete: serviceName.value,
+    fecha_preferida: preferredDate.value,
+    notas: notes.value,
+    origen_url: window.location.href,
+  }
+}
+
+function createWhatsAppMessage(payload: LeadPayload) {
+  const lines = [
+    payload.intencion === 'agendar' ? t.value.chat.whatsappBooking : t.value.chat.whatsappQuote,
+    payload.nombre ? `Nombre: ${payload.nombre}` : '',
+    payload.whatsapp ? `WhatsApp: ${payload.whatsapp}` : '',
+    payload.servicio_o_paquete
+      ? `${t.value.chat.whatsappService}: ${payload.servicio_o_paquete}`
+      : '',
+    payload.fecha_preferida ? `${t.value.chat.whatsappDate}: ${payload.fecha_preferida}` : '',
+    payload.notas ? `${t.value.chat.whatsappNotes}: ${payload.notas}` : '',
+  ]
+
+  return lines.filter(Boolean).join('\n')
+}
+
+const whatsappUrl = computed(() =>
+  buildWhatsAppUrl(
+    createWhatsAppMessage(stage.value === 'lead-error' && pendingLead.value ? pendingLead.value : currentLead()),
+  ),
+)
 
 watch(
   messages,
@@ -51,38 +223,17 @@ watch(isOpen, async (open) => {
   }
 })
 
-function toggleService(serviceId: ServiceId) {
-  selectedServiceIds.value = selectedServiceIds.value.includes(serviceId)
-    ? selectedServiceIds.value.filter((id) => id !== serviceId)
-    : [...selectedServiceIds.value, serviceId]
-}
-
-async function sendMessage() {
-  const content = question.value.trim()
-  if (!content || isSending.value) return
-
-  const history = messages.value
-    .slice(1)
-    .slice(-10)
-    .map(({ role, content: messageContent }) => ({ role, content: messageContent }))
-  if (history[0]?.role === 'assistant') history.shift()
-
-  messages.value.push({ role: 'user', content })
-  question.value = ''
-  errorCode.value = ''
+async function submitLead(payload: LeadPayload) {
   isSending.value = true
+  pendingLead.value = payload
+  let failureMessage = t.value.chat.leadError
 
   try {
-    const response = await fetch('/api/chat', {
+    const response = await fetch('/api/lead', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        locale: locale.value,
-        serviceIds: selectedServiceIds.value,
-        messages: [...history, { role: 'user', content }],
-      }),
+      body: JSON.stringify(payload),
     })
-
     if (!response.ok) {
       const errorBody: unknown = await response.json().catch(() => null)
       const code =
@@ -92,26 +243,129 @@ async function sendMessage() {
         typeof errorBody.code === 'string'
           ? errorBody.code
           : ''
-      throw new Error(`Chat API returned ${response.status}${code ? ` (${code})` : ''}`)
+
+      if (import.meta.env.DEV && code === 'EMAIL_NOT_CONFIGURED') {
+        failureMessage = t.value.chat.emailNotConfigured
+      } else if (import.meta.env.DEV && code === 'EMAIL_SEND_FAILED') {
+        failureMessage = t.value.chat.emailSendFailed
+      }
+
+      throw new Error(`Lead API returned ${response.status}${code ? ` (${code})` : ''}`)
     }
 
-    const result: unknown = await response.json()
-    if (
-      typeof result !== 'object' ||
-      result === null ||
-      !('reply' in result) ||
-      typeof result.reply !== 'string' ||
-      result.reply.trim() === ''
-    ) {
-      throw new Error('Chat API returned an invalid response')
-    }
-
-    messages.value.push({ role: 'assistant', content: result.reply })
+    stage.value = payload.intencion === 'agendar' ? 'booking-done' : 'quote-done'
+    const successMessage =
+      payload.intencion === 'agendar' ? t.value.chat.bookingSuccess : t.value.chat.quoteSuccess
+    addMessage(
+      'assistant',
+      successMessage.replace('{name}', payload.nombre).replace('{service}', payload.servicio_o_paquete),
+    )
   } catch (error) {
-    console.error('Failed to send chat message:', error)
-    errorCode.value = 'generic'
+    console.error('Failed to submit chat lead:', error)
+    stage.value = 'lead-error'
+    addMessage('assistant', failureMessage)
   } finally {
     isSending.value = false
+  }
+}
+
+async function handleAction(value: string) {
+  if (isSending.value) return
+
+  const action = actions.value.find((item) => item.value === value)
+  if (action) addMessage('user', action.label)
+
+  if (value === 'menu') {
+    goToMenu()
+  } else if (value === 'booking') {
+    resetLead()
+    setStage('booking-service', t.value.chat.chooseService)
+  } else if (value === 'services') {
+    resetLead()
+    showServiceDetails.value = false
+    addMessage('assistant', `${t.value.chat.servicesIntro}\n${t.value.chat.servicesQuestion}`)
+    stage.value = 'services'
+  } else if (value === 'location') {
+    stage.value = 'location'
+    addMessage('assistant', t.value.chat.locationInfo)
+  } else if (value === 'quote') {
+    resetLead()
+    setStage('quote-notes', t.value.chat.quotePrompt)
+  } else if (value === 'details') {
+    showServiceDetails.value = !showServiceDetails.value
+    const serviceDetails = SERVICE_CATALOG.map((service) => {
+      const item = t.value.services.items[service.id]
+      return `• ${item.name}: ${item.description}`
+    }).join('\n')
+    addMessage(
+      'assistant',
+      showServiceDetails.value
+        ? `${serviceDetails}\n\n${t.value.chat.serviceDetails}`
+        : t.value.chat.servicesQuestion,
+    )
+  } else if (value.startsWith('service:')) {
+    const serviceId = value.slice('service:'.length) as ServiceId
+    selectedServiceId.value = serviceId
+    setStage('booking-date', t.value.chat.chooseDate)
+  } else if (value.startsWith('date:')) {
+    const dateChoice = value.slice('date:'.length)
+    if (dateChoice === 'exact') {
+      setStage('booking-exact-date', t.value.chat.exactDatePrompt)
+    } else {
+      preferredDate.value =
+        dateChoice === 'this-week' ? t.value.chat.dateThisWeek : t.value.chat.dateNextWeek
+      setStage('booking-name', t.value.chat.namePrompt)
+    }
+  } else if (value === 'maps') {
+    window.open(mapsUrl, '_blank', 'noopener,noreferrer')
+  } else if (value === 'whatsapp') {
+    window.open(whatsappUrl.value, '_blank', 'noopener,noreferrer')
+  } else if (value === 'retry' && pendingLead.value) {
+    await submitLead(pendingLead.value)
+  }
+}
+
+async function submitAnswer() {
+  const content = answer.value.trim()
+  if (!content || isSending.value) return
+
+  if (stage.value === 'booking-name' || stage.value === 'quote-name') {
+    if (content.length < 2) {
+      addMessage('assistant', t.value.chat.invalidName)
+      return
+    }
+    name.value = content
+    addMessage('user', content)
+    answer.value = ''
+    if (stage.value === 'booking-name') {
+      setStage('booking-whatsapp', t.value.chat.whatsappPrompt)
+    } else {
+      setStage('quote-whatsapp', t.value.chat.quoteWhatsappPrompt)
+    }
+    return
+  }
+
+  if (stage.value === 'booking-whatsapp' || stage.value === 'quote-whatsapp') {
+    const digits = content.replace(/\D/g, '')
+    if (digits.length < 8 || digits.length > 15) {
+      addMessage('assistant', t.value.chat.invalidWhatsapp)
+      return
+    }
+    whatsapp.value = content
+    addMessage('user', content)
+    answer.value = ''
+    await submitLead(currentLead())
+    return
+  }
+
+  addMessage('user', content)
+  answer.value = ''
+  if (stage.value === 'booking-exact-date') {
+    preferredDate.value = content
+    setStage('booking-name', t.value.chat.namePrompt)
+  } else if (stage.value === 'quote-notes') {
+    notes.value = content
+    setStage('quote-name', t.value.chat.quoteNamePrompt)
   }
 }
 </script>
@@ -124,6 +378,9 @@ async function sendMessage() {
           <h2>{{ t.chat.title }}</h2>
           <p>{{ t.chat.subtitle }}</p>
         </div>
+        <button class="home-button" type="button" :disabled="isSending" @click="goToMenu">
+          {{ t.chat.restart }}
+        </button>
         <button
           class="close-button"
           type="button"
@@ -143,66 +400,45 @@ async function sendMessage() {
       </header>
 
       <div ref="messageList" class="message-list" role="log" aria-live="polite">
-        <article
-          v-for="(message, index) in messages"
-          :key="index"
-          class="message"
-          :class="`message-${message.role}`"
-        >
-          {{ message.content }}
-        </article>
+        <template v-for="(message, index) in messages" :key="index">
+          <article class="message" :class="`message-${message.role}`">
+            {{ message.content }}
+          </article>
+        </template>
+        <div v-if="actions.length" class="action-list" :aria-label="t.chat.optionsLabel">
+          <button
+            v-for="action in actions"
+            :key="action.value"
+            class="action-button"
+            type="button"
+            :disabled="isSending"
+            @click="handleAction(action.value)"
+          >
+            {{ action.label }}
+          </button>
+        </div>
         <p v-if="isSending" class="sending-indicator" aria-live="polite">
           {{ t.chat.sending }}
         </p>
       </div>
 
-      <div class="service-picker">
-        <div class="picker-heading">
-          <h3>{{ t.chat.selectServices }}</h3>
-          <span v-if="selectedServiceIds.length">
-            {{ selectedServiceIds.length }} {{ t.chat.selectedCount }}
-          </span>
-        </div>
-        <p class="picker-help">{{ t.chat.selectionHelp }}</p>
-        <div class="service-list">
-          <label v-for="service in SERVICE_CATALOG" :key="service.id" class="service-option">
-            <input
-              type="checkbox"
-              :checked="selectedServiceIds.includes(service.id)"
-              @change="toggleService(service.id)"
-            />
-            <span class="service-name">
-              {{ t.services.items[service.id].name }}
-              <small>{{ service.duration }}</small>
-            </span>
-            <span class="service-price">
-              {{ t.chat.priceFrom }} R$ {{ service.price }}
-            </span>
-          </label>
-        </div>
-      </div>
-
-      <p v-if="errorCode" class="error-message" role="alert">
-        {{ t.chat.error }}
-      </p>
-
-      <form class="composer" @submit.prevent="sendMessage">
+      <form v-if="isTextStep" class="composer" @submit.prevent="submitAnswer">
         <label class="visually-hidden" for="chat-question">{{ t.chat.inputLabel }}</label>
         <input
           id="chat-question"
-          v-model="question"
+          v-model="answer"
           type="text"
-          maxlength="1000"
-          :placeholder="t.chat.placeholder"
+          :maxlength="inputMaxLength"
+          :placeholder="inputPlaceholder"
           :disabled="isSending"
         />
-        <button type="submit" :disabled="isSending || !question.trim()">
+        <button type="submit" :disabled="isSending || !answer.trim()">
           {{ isSending ? t.chat.sending : t.chat.send }}
         </button>
       </form>
 
       <a class="whatsapp-link" :href="whatsappUrl" target="_blank" rel="noopener noreferrer">
-        {{ t.chat.whatsapp }}
+        {{ t.chat.whatsappNow }}
       </a>
     </section>
 
@@ -272,6 +508,8 @@ async function sendMessage() {
 
 .chat-launcher:focus-visible,
 .close-button:focus-visible,
+.home-button:focus-visible,
+.action-button:focus-visible,
 .composer button:focus-visible,
 .whatsapp-link:focus-visible {
   outline: 2px solid var(--color-text);
@@ -282,6 +520,7 @@ async function sendMessage() {
   display: flex;
   flex-direction: column;
   width: min(390px, calc(100vw - 32px));
+  height: min(690px, calc(100dvh - 104px));
   max-height: min(690px, calc(100dvh - 104px));
   overflow: hidden;
   border: 1px solid var(--color-line);
@@ -313,6 +552,23 @@ async function sendMessage() {
   font-size: 0.78rem;
 }
 
+.home-button {
+  margin-left: auto;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.home-button:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-ink);
+}
+
 .close-button {
   display: inline-flex;
   align-items: center;
@@ -326,16 +582,16 @@ async function sendMessage() {
 }
 
 .close-button:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--color-accent);
+  color: var(--color-ink);
 }
 
 .message-list {
   display: flex;
-  flex: 1 1 150px;
+  flex: 1 1 0;
   flex-direction: column;
   gap: 10px;
-  min-height: 72px;
-  max-height: 210px;
+  min-height: 0;
   overflow-y: auto;
   padding: 16px;
   background: var(--color-bg);
@@ -368,93 +624,43 @@ async function sendMessage() {
   font-size: 0.8rem;
 }
 
-.service-picker {
-  flex: 0 1 auto;
-  min-height: 0;
-  padding: 14px 16px 10px;
-  border-top: 1px solid var(--color-line);
-}
-
-.picker-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.picker-heading h3 {
-  font-size: 0.86rem;
-  font-weight: 600;
-}
-
-.picker-heading span,
-.picker-help {
-  color: var(--color-ink-muted);
-  font-size: 0.72rem;
-}
-
-.picker-help {
-  margin-top: 2px;
-}
-
-.service-list {
+.action-list {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  min-height: 0;
-  max-height: 156px;
-  overflow-y: auto;
-  margin-top: 10px;
-}
-
-.service-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  min-width: 0;
-  padding: 7px;
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.service-option:has(input:checked) {
-  border-color: var(--color-accent);
-  background: rgba(212, 175, 106, 0.12);
-}
-
-.service-option input {
-  flex: 0 0 auto;
-  margin: 3px 0 0;
-  accent-color: var(--color-accent);
-}
-
-.service-name {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  font-size: 0.73rem;
-  font-weight: 600;
-}
-
-.service-name small {
+  gap: 7px;
+  width: min(100%, 310px);
   margin-top: 2px;
-  color: var(--color-ink-muted);
-  font-size: 0.65rem;
-  font-weight: 400;
+  align-self: flex-start;
 }
 
-.service-price {
-  flex: 0 0 auto;
-  color: var(--color-ink-muted);
-  font-size: 0.64rem;
-}
-
-.error-message {
-  margin: 0 16px 8px;
-  color: #a33b32;
+.action-button {
+  padding: 9px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--color-card);
+  color: var(--color-ink);
+  text-align: left;
   font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.action-button:not(:disabled):hover,
+.action-button:not(:disabled):focus-visible,
+.action-button:not(:disabled):active {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-ink);
+}
+
+.action-button:focus-visible {
+  outline: 2px solid var(--color-accent-dark);
+  outline-offset: 2px;
+}
+
+.action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .composer {
@@ -491,6 +697,14 @@ async function sendMessage() {
   color: var(--color-white);
   font-size: 0.78rem;
   font-weight: 600;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.composer button:not(:disabled):hover,
+.composer button:not(:disabled):focus-visible,
+.composer button:not(:disabled):active {
+  background: var(--color-accent);
+  color: var(--color-ink);
 }
 
 .composer button:disabled {
@@ -525,21 +739,18 @@ async function sendMessage() {
   }
 
   .chat-panel {
+    height: calc(100dvh - 86px);
     max-height: calc(100dvh - 86px);
   }
 
   .message-list {
-    flex-basis: 90px;
-    max-height: 100px;
-  }
-
-  .service-list {
-    max-height: 92px;
+    padding: 12px;
   }
 }
 
 @media (max-height: 560px) {
   .chat-panel {
+    height: calc(100dvh - 86px);
     max-height: calc(100dvh - 86px);
   }
 
@@ -547,18 +758,6 @@ async function sendMessage() {
     padding-block: 12px;
   }
 
-  .message-list {
-    flex-basis: 80px;
-    max-height: 88px;
-  }
-
-  .service-picker {
-    padding-block: 10px 6px;
-  }
-
-  .service-list {
-    max-height: 84px;
-  }
 }
 
 @media (min-width: 900px) {

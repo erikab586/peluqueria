@@ -174,16 +174,52 @@ export interface Translations {
     close: string
     title: string
     subtitle: string
+    optionsLabel: string
     welcome: string
-    selectServices: string
-    selectionHelp: string
-    selectedCount: string
-    priceFrom: string
+    menuBooking: string
+    menuServices: string
+    menuLocation: string
+    menuQuote: string
+    chooseService: string
+    chooseDate: string
+    dateThisWeek: string
+    dateNextWeek: string
+    dateExact: string
+    exactDatePrompt: string
+    namePrompt: string
+    whatsappPrompt: string
+    bookingSuccess: string
+    servicesIntro: string
+    servicesQuestion: string
+    serviceDetails: string
+    serviceDetailsAction: string
+    serviceDifferent: string
+    locationInfo: string
+    maps: string
+    bookVisit: string
+    quotePrompt: string
+    quoteNamePrompt: string
+    quoteWhatsappPrompt: string
+    quoteSuccess: string
+    leadError: string
+    emailNotConfigured: string
+    emailSendFailed: string
+    invalidName: string
+    invalidWhatsapp: string
+    restart: string
+    backToMenu: string
+    whatsappNow: string
+    inputName: string
+    inputWhatsapp: string
+    inputDate: string
+    inputProject: string
+    whatsappBooking: string
+    whatsappQuote: string
+    whatsappService: string
+    whatsappDate: string
+    whatsappNotes: string
     inputLabel: string
-    placeholder: string
     send: string
     sending: string
-    error: string
-    whatsapp: string
   }
 }
